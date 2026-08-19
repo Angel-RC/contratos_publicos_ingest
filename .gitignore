@@ -13,3 +13,7 @@ wheels/
 *.duckdb
 *.duckdb.wal
 .dlt/secrets.toml
+data/licitaciones
+data/licitaciones_parsed
+.claude/
+basura/
