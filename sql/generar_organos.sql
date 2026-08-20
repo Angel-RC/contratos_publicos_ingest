@@ -15,6 +15,11 @@
 --                         Comercio" de Canarias), así que buscar por comunidad
 --                         autónoma sobre organo_nombre no los encontraría.
 --   fiabilidad          'fiable' o 'revision'. Ver la lógica más abajo.
+--   fecha_alta          cuándo se añadió la fila al fichero (timestamp de cuando
+--                         se ejecutó este proceso y la detectó como nueva). NULL
+--                         para las filas que ya existían antes de añadir esta
+--                         columna (2026-08-20) -- no se conoce su fecha real de
+--                         alta, y no se ha inventado una.
 --
 -- Requiere que sql/organismo_key.sql se haya cargado antes en la misma sesión
 -- (define la macro organismo_key() que se usa aquí).
@@ -38,7 +43,17 @@
 --         ciudad -- caso Siero; no se puede distinguir automáticamente sin más
 --         señal, así que se marca para revisión en vez de decidir en silencio).
 
-COPY (
+-- IMPORTANTE: este proceso ya NO sobrescribe data/organos.jsonl sin más. Las filas
+-- que ya existen en el fichero (incluida cualquier limpieza manual hecha a mano)
+-- se conservan tal cual, byte a byte -- nunca se recalculan ni se tocan. Solo se
+-- añaden filas nuevas cuya combinación (organo_nif, organo_nombre) no existiera
+-- ya en el fichero. Si la generación en fresco produce más de una fila candidata
+-- para el mismo (organo_nif, organo_nombre) que aún no existe, se queda solo con
+-- una (la de más licitaciones; en empate, por organo_ciudad/dependencia) para no
+-- crear duplicados. Asume que data/organos.jsonl ya existe -- si no existe, créalo
+-- primero (p.ej. un fichero con una fila y bórrala, o ejecuta la versión anterior
+-- de este proceso una vez).
+CREATE OR REPLACE TABLE _organos_generado AS (
     WITH base AS (
         SELECT
             organo_nif,
@@ -147,5 +162,42 @@ COPY (
         f.n_licitaciones
     FROM con_fiabilidad f
     LEFT JOIN nombre_limpio nl ON nl.organismo = f.organismo
-    ORDER BY f.fiabilidad DESC, f.organo_nif, f.organo_nombre
+);
+
+-- El fichero existente se materializa en una tabla ANTES de escribir nada, para
+-- que el COPY de más abajo (que sobrescribe data/organos.jsonl) no afecte a lo que
+-- ya se ha leído.
+CREATE OR REPLACE TABLE _organos_existente AS (
+    SELECT * FROM read_ndjson_auto('data/organos.jsonl')
+);
+
+-- De lo generado en fresco, solo las combinaciones (nif, nombre) que no existían
+-- ya. Si hay varias candidatas nuevas para la misma combinación (distinta
+-- ciudad/dependencia entre licitaciones), se queda con una sola -- determinista:
+-- más licitaciones primero, empate por ciudad/dependencia.
+CREATE OR REPLACE TABLE _organos_nuevos AS (
+    WITH candidatos AS (
+        SELECT g.*
+        FROM _organos_generado g
+        WHERE NOT EXISTS (
+            SELECT 1 FROM _organos_existente e
+            WHERE e.organo_nif = g.organo_nif AND e.organo_nombre = g.organo_nombre
+        )
+    ),
+    ranked AS (
+        SELECT *,
+               row_number() OVER (
+                   PARTITION BY organo_nif, organo_nombre
+                   ORDER BY n_licitaciones DESC, organo_ciudad, dependencia
+               ) AS rn
+        FROM candidatos
+    )
+    SELECT * EXCLUDE (rn), now()::TIMESTAMP AS fecha_alta FROM ranked WHERE rn = 1
+);
+
+COPY (
+    SELECT * FROM _organos_existente
+    UNION ALL
+    SELECT * FROM _organos_nuevos
+    ORDER BY fiabilidad DESC, organo_nif, organo_nombre
 ) TO 'data/organos.jsonl' (FORMAT JSON);

@@ -102,6 +102,8 @@ CREATE OR REPLACE MACRO limpiar_nombre_organo(nombre) AS (
             THEN regexp_extract(nombre, '^Dirección de la (.+)$', 1)
         WHEN nombre LIKE 'Gerencia de la %'
             THEN regexp_extract(nombre, '^Gerencia de la (.+)$', 1)
+        WHEN nombre LIKE 'Dirección del %'
+            THEN regexp_extract(nombre, '^Dirección del (.+)$', 1)
         ELSE nombre
     END
 );
