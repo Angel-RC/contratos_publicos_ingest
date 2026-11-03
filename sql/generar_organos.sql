@@ -47,7 +47,8 @@
 -- que ya existen en el fichero (incluida cualquier limpieza manual hecha a mano)
 -- se conservan tal cual, byte a byte -- nunca se recalculan ni se tocan. Solo se
 -- añaden filas nuevas cuya combinación (organo_nif, organo_nombre) no existiera
--- ya en el fichero. Si la generación en fresco produce más de una fila candidata
+-- ya en el fichero. La comparación ignora mayúsculas/minúsculas, tildes y espacios (ver
+-- normalizar_clave en sql/organismo_key.sql). Si la generación en fresco produce más de una fila candidata
 -- para el mismo (organo_nif, organo_nombre) que aún no existe, se queda solo con
 -- una (la de más licitaciones; en empate, por organo_ciudad/dependencia) para no
 -- crear duplicados. Asume que data/organos.jsonl ya existe -- si no existe, créalo
@@ -181,13 +182,14 @@ CREATE OR REPLACE TABLE _organos_nuevos AS (
         FROM _organos_generado g
         WHERE NOT EXISTS (
             SELECT 1 FROM _organos_existente e
-            WHERE e.organo_nif = g.organo_nif AND e.organo_nombre = g.organo_nombre
+            WHERE normalizar_clave(e.organo_nif) = normalizar_clave(g.organo_nif)
+              AND normalizar_clave(e.organo_nombre) = normalizar_clave(g.organo_nombre)
         )
     ),
     ranked AS (
         SELECT *,
                row_number() OVER (
-                   PARTITION BY organo_nif, organo_nombre
+                   PARTITION BY normalizar_clave(organo_nif), normalizar_clave(organo_nombre)
                    ORDER BY n_licitaciones DESC, organo_ciudad, dependencia
                ) AS rn
         FROM candidatos

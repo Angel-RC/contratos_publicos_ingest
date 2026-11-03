@@ -47,6 +47,14 @@ CREATE OR REPLACE MACRO organismo_key(organo_nif, organo_nombre, dependencia) AS
 -- sql/generar_organos.sql, que en su lugar marca estos casos con fiabilidad='revision'
 -- para que se revisen a mano.
 
+-- Normaliza un texto para compararlo: ignora mayúsculas/minúsculas, tildes y
+-- diacríticos, espacios al principio/final y espacios repetidos
+-- ("Alcaldía  de X " == "alcaldia de x"). Solo se usa para comparar, nunca para el
+-- valor que se guarda.
+CREATE OR REPLACE MACRO normalizar_clave(texto) AS (
+    regexp_replace(strip_accents(lower(trim(texto))), '\s+', ' ', 'g')
+);
+
 -- Simplifica los 4 patrones de firma de un ayuntamiento (Alcaldía / Junta de
 -- Gobierno [Local] / Pleno / Concejal[ía]... -- incluye "Concejal Presidente del
 -- Tagoror...") "... del Ayuntamiento de X" a un único "Ayuntamiento de X". Solo
