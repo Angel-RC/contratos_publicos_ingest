@@ -61,9 +61,15 @@ def process_zip_files(
         if output_path.exists() and not overwrite:
             output_paths.append(output_path)
             continue
-        with open(output_path, "w", encoding="utf-8") as f:
-            for record in parse_zip(zip_path):
-                f.write(record.model_dump_json() + "\n")
+        tmp_path = output_path.with_suffix(".jsonl.tmp")
+        try:
+            with open(tmp_path, "w", encoding="utf-8") as f:
+                for record in parse_zip(zip_path):
+                    f.write(record.model_dump_json() + "\n")
+        except BaseException:
+            tmp_path.unlink()
+            raise
+        tmp_path.replace(output_path)
         output_paths.append(output_path)
     return output_paths
 

@@ -14,7 +14,7 @@ class RemoteFile(BaseModel):
 
 
 class FileNotAvailable(Exception):
-    """The remote file does not exist yet (HTTP 404)."""
+    """The remote file does not exist yet (HTTP 404 or an HTML error page)."""
 
 
 def download_files(
@@ -48,7 +48,7 @@ def download_files(
 )
 def _download_one(session: requests.Session, url: str, destination: Path) -> None:
     response = session.get(url, timeout=600, stream=True)
-    if response.status_code == 404:
+    if response.status_code == 404 or "text/html" in response.headers.get("Content-Type", ""):
         raise FileNotAvailable(url)
     response.raise_for_status()
     with open(destination, "wb") as f:

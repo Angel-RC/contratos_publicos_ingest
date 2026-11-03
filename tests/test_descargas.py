@@ -4,9 +4,10 @@ from descargas import RemoteFile, download_files
 
 
 class FakeResponse:
-    def __init__(self, chunks: list[bytes], status_code: int = 200):
+    def __init__(self, chunks: list[bytes], status_code: int = 200, headers: dict | None = None):
         self._chunks = chunks
         self.status_code = status_code
+        self.headers = headers or {"Content-Type": "application/zip"}
 
     def raise_for_status(self) -> None:
         if self.status_code >= 400:
@@ -69,6 +70,17 @@ def test_download_files_skips_file_not_found(tmp_path):
 
     assert downloaded == []
     assert not (tmp_path / "missing.zip").exists()
+
+
+def test_download_files_skips_html_error_page(tmp_path):
+    remote_file = RemoteFile(name="future.zip", url="https://example.com/future.zip", year=2026)
+    html_page = FakeResponse([b"<html>certificado no autorizado</html>"], headers={"Content-Type": "text/html; charset=UTF-8"})
+    session = FakeSession({remote_file.url: html_page})
+
+    downloaded = download_files([remote_file], tmp_path, session=session)
+
+    assert downloaded == []
+    assert not (tmp_path / "future.zip").exists()
 
 
 class FlakyThenOkSession:
