@@ -1,9 +1,9 @@
 from functools import partial
 from pathlib import Path
 
-import licitaciones_2
+import licitaciones
 from descargas import download_files
-from licitaciones_2 import LicitacionesConfig, process_zip_files
+from licitaciones import LicitacionesConfig, process_zip_files
 
 CONFIG = LicitacionesConfig(
     base_url="https://contrataciondelsectorpublico.gob.es/sindicacion/sindicacion_1143/",
@@ -12,7 +12,7 @@ CONFIG = LicitacionesConfig(
     monthly_since=2025,
 )
 
-list_files = partial(licitaciones_2.list_files, config=CONFIG)
+list_files = partial(licitaciones.list_files, config=CONFIG)
 
 
 def main() -> None:
