@@ -17,3 +17,7 @@ data/licitaciones
 data/licitaciones_parsed
 .claude/
 basura/
+/data/contratos_menores
+/data/contratos_menores_parsed
+/data/licitaciones
+/data/licitaciones_parsed

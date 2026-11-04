@@ -1,4 +1,4 @@
--- Genera data/organos.jsonl: un registro por cada combinación distinta de
+-- Genera data/masters/organos.jsonl: un registro por cada combinación distinta de
 -- (organo_nif, organo_nombre, organo_ciudad, dependencia, organo_tipo_code) vista en
 -- todas las licitaciones parseadas, con:
 --
@@ -43,7 +43,7 @@
 --         ciudad -- caso Siero; no se puede distinguir automáticamente sin más
 --         señal, así que se marca para revisión en vez de decidir en silencio).
 
--- IMPORTANTE: este proceso ya NO sobrescribe data/organos.jsonl sin más. Las filas
+-- IMPORTANTE: este proceso ya NO sobrescribe data/masters/organos.jsonl sin más. Las filas
 -- que ya existen en el fichero (incluida cualquier limpieza manual hecha a mano)
 -- se conservan tal cual, byte a byte -- nunca se recalculan ni se tocan. Solo se
 -- añaden filas nuevas cuya combinación (organo_nif, organo_nombre) no existiera
@@ -51,7 +51,7 @@
 -- normalizar_clave en sql/organismo_key.sql). Si la generación en fresco produce más de una fila candidata
 -- para el mismo (organo_nif, organo_nombre) que aún no existe, se queda solo con
 -- una (la de más licitaciones; en empate, por organo_ciudad/dependencia) para no
--- crear duplicados. Asume que data/organos.jsonl ya existe -- si no existe, créalo
+-- crear duplicados. Asume que data/masters/organos.jsonl ya existe -- si no existe, créalo
 -- primero (p.ej. un fichero con una fila y bórrala, o ejecuta la versión anterior
 -- de este proceso una vez).
 CREATE OR REPLACE TABLE _organos_generado AS (
@@ -166,10 +166,10 @@ CREATE OR REPLACE TABLE _organos_generado AS (
 );
 
 -- El fichero existente se materializa en una tabla ANTES de escribir nada, para
--- que el COPY de más abajo (que sobrescribe data/organos.jsonl) no afecte a lo que
+-- que el COPY de más abajo (que sobrescribe data/masters/organos.jsonl) no afecte a lo que
 -- ya se ha leído.
 CREATE OR REPLACE TABLE _organos_existente AS (
-    SELECT * FROM read_ndjson_auto('data/organos.jsonl')
+    SELECT * FROM read_ndjson_auto('data/masters/organos.jsonl')
 );
 
 -- De lo generado en fresco, solo las combinaciones (nif, nombre) que no existían
@@ -202,4 +202,4 @@ COPY (
     UNION ALL
     SELECT * FROM _organos_nuevos
     ORDER BY fiabilidad DESC, organo_nif, organo_nombre
-) TO 'data/organos.jsonl' (FORMAT JSON);
+) TO 'data/masters/organos.jsonl' (FORMAT JSON);
